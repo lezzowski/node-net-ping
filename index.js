@@ -97,8 +97,14 @@ function Session (options) {
 
 	this.reqs = {};
 	this.reqsPending = 0;
-
-	this.getSocket ();
+	
+	if (options && options.ifaceName !== undefined && process.platform === 'linux') {
+		const level = raw.SocketLevel.SOL_SOCKET;
+		const option = raw.SocketOption.SO_BINDTODEVICE;
+		const ifaceBuffer = Buffer.from(options.ifaceName);
+		this.getSocket().setOption(level, option, ifaceBuffer, ifaceBuffer.length);
+	} else if (options && options.srcIpAddress !== undefined) this.getSocket().bindSocket(options.srcIpAddress);
+	
 };
 
 util.inherits (Session, events.EventEmitter);
@@ -123,7 +129,7 @@ Session.prototype._debugResponse = function (source, buffer) {
 }
 
 Session.prototype.flush = function (error) {
-	for (var id in this.reqs) {
+	for (id in this.reqs) {
 		var req = this.reqRemove (id);
 		var sent = req.sent ? req.sent : new Date ();
 		req.callback (error, req.target, sent, new Date ());
